@@ -183,18 +183,23 @@ export default function NovoClientePage() {
                     }]);
 
                 // 4. Criar perfil do usuário (NOVO: app_users) para acesso ao NextDashboard
-                await supabase
+                const { error: appUserError } = await supabase
                     .from('app_users')
                     .insert([{
                         auth_id: authData.user.id,
                         name: formData.admin_name,
                         role: 'admin',
                         organization_id: orgData.id,
-                        empresa_id: orgData.id,
-                        email: formData.admin_email,
-                        status: 'ativo'
-                    }])
-                    .select();
+                        empresa_id: orgData.id, // Restaurado pois parece ser obrigatório
+                        email: formData.admin_email
+                        // status removido pois a coluna não existe na tabela app_users
+                    }]);
+
+                if (appUserError) {
+                    console.error('Erro ao criar app_users:', appUserError);
+                    // Não bloqueia o fluxo, mas loga o erro crítico
+                    alert('Erro ao vincular usuário ao App: ' + appUserError.message);
+                }
             }
 
             setShowModal(true);
