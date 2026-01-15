@@ -8,9 +8,19 @@ interface ModalProps {
     type?: 'success' | 'error' | 'warning' | 'info';
     title: string;
     message: string;
+    showOkButton?: boolean;
+    customButtons?: React.ReactNode;
 }
 
-export default function Modal({ isOpen, onClose, type = 'success', title, message }: ModalProps) {
+export default function Modal({
+    isOpen,
+    onClose,
+    type = 'success',
+    title,
+    message,
+    showOkButton = true,
+    customButtons
+}: ModalProps) {
     if (!isOpen) return null;
 
     const icons = {
@@ -34,9 +44,15 @@ export default function Modal({ isOpen, onClose, type = 'success', title, messag
                 <h2 className={styles.title}>{title}</h2>
                 <p className={styles.message}>{message}</p>
 
-                <button className={`btn btn-primary ${styles.okBtn}`} onClick={onClose}>
-                    OK
-                </button>
+                {customButtons ? (
+                    <div className={styles.buttonGroup}>
+                        {customButtons}
+                    </div>
+                ) : showOkButton && (
+                    <button className={`btn btn-primary ${styles.okBtn}`} onClick={onClose}>
+                        OK
+                    </button>
+                )}
             </div>
         </div>
     );

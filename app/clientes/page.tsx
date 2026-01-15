@@ -135,7 +135,11 @@ export default function ClientesPage() {
 
         setShowDeleteModal(false);
 
-        if (!error) {
+        if (error) {
+            console.error('Erro ao excluir:', error);
+            setModalMessage({ title: 'Erro ao Excluir', message: 'Não foi possível excluir: ' + error.message });
+            setShowSuccessModal(true);
+        } else {
             setModalMessage({ title: 'Cliente Excluído!', message: 'O cliente foi removido permanentemente do sistema.' });
             setShowSuccessModal(true);
             fetchClients();
@@ -300,13 +304,14 @@ export default function ClientesPage() {
                 type="warning"
                 title="Confirmar Exclusão"
                 message="Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita."
+                showOkButton={false}
+                customButtons={
+                    <>
+                        <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</button>
+                        <button className="btn btn-danger" onClick={handleDelete}>Excluir</button>
+                    </>
+                }
             />
-            {showDeleteModal && (
-                <div style={{ position: 'fixed', bottom: '30%', left: '50%', transform: 'translateX(-50%)', zIndex: 1001, display: 'flex', gap: '12px' }}>
-                    <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</button>
-                    <button className="btn btn-danger" onClick={handleDelete}>Excluir</button>
-                </div>
-            )}
 
             {/* Success Modal */}
             <Modal
