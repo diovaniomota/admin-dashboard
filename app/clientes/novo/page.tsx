@@ -195,230 +195,240 @@ export default function NovoClientePage() {
                         status: 'ativo'
                     }])
                     .select();
-            };
+            }
 
-            return (
+            setShowModal(true);
+
+        } catch (error) {
+            setError('Erro ao criar cliente');
+            console.error(error);
+        }
+
+        setLoading(false);
+    };
+
+    return (
+        <div>
+            <header className={styles.header}>
+                <button className={styles.backBtn} onClick={() => {
+                    if (step > 1) {
+                        setStep(step - 1);
+                    } else {
+                        router.back();
+                    }
+                }}>
+                    <ArrowLeft size={20} />
+                </button>
                 <div>
-                    <header className={styles.header}>
-                        <button className={styles.backBtn} onClick={() => {
-                            if (step > 1) {
-                                setStep(step - 1);
-                            } else {
-                                router.back();
-                            }
-                        }}>
-                            <ArrowLeft size={20} />
-                        </button>
-                        <div>
-                            <h1>Novo Cliente</h1>
-                            <p>Cadastrar uma nova empresa na plataforma</p>
-                        </div>
-                    </header>
+                    <h1>Novo Cliente</h1>
+                    <p>Cadastrar uma nova empresa na plataforma</p>
+                </div>
+            </header>
 
-                    {error && <div className={styles.errorAlert}>{error}</div>}
+            {error && <div className={styles.errorAlert}>{error}</div>}
 
-                    <form onSubmit={handleSubmit}>
-                        {step === 1 && (
-                            <div className="card">
-                                <h2 className={styles.sectionTitle}>
-                                    <Building2 size={22} />
-                                    Dados Cadastrais
-                                </h2>
+            <form onSubmit={handleSubmit}>
+                {step === 1 && (
+                    <div className="card">
+                        <h2 className={styles.sectionTitle}>
+                            <Building2 size={22} />
+                            Dados Cadastrais
+                        </h2>
 
-                                <div className={styles.formGrid}>
-                                    <div className={styles.formGroup}>
-                                        <label>CNPJ *</label>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <input
-                                                type="text"
-                                                name="cnpj"
-                                                value={formData.cnpj}
-                                                onChange={handleChange}
-                                                required
-                                                maxLength={18}
-                                                style={{ flex: 1 }}
-                                                placeholder="00.000.000/0000-00"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={buscarCNPJ}
-                                                disabled={searchingCNPJ}
-                                                style={{
-                                                    padding: '0 12px',
-                                                    background: 'var(--primary)',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: '8px',
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    transition: 'background 0.2s',
-                                                    minWidth: '44px'
-                                                }}
-                                                title="Buscar dados do CNPJ"
-                                            >
-                                                {searchingCNPJ ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className={styles.formGroup}>
-                                        <label>Inscrição Estadual</label>
-                                        <input
-                                            type="text"
-                                            name="inscricao_estadual"
-                                            value={formData.inscricao_estadual}
-                                            onChange={handleChange}
-                                        />
-                                    </div>
-
-                                    {/* Resto dos campos continua igual */}
-                                    <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-                                        <label>Razão Social *</label>
-                                        <input name="razao_social" value={formData.razao_social} onChange={handleChange} required />
-                                    </div>
-
-                                    <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-                                        <label>Nome Fantasia *</label>
-                                        <input name="nome_fantasia" value={formData.nome_fantasia} onChange={handleChange} required />
-                                    </div>
-
-                                    <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-                                        <label>CNAE Principal</label>
-                                        <input name="cnae_principal" value={formData.cnae_principal} onChange={handleChange} placeholder="Descrição ou código" />
-                                    </div>
-
-                                    <div className={styles.formGroup}>
-                                        <label>Email *</label>
-                                        <input type="email" name="email" value={formData.email} onChange={handleChange} required />
-                                    </div>
-
-                                    <div className={styles.formGroup}>
-                                        <label>Telefone</label>
-                                        <input name="phone" value={formData.phone} onChange={handleChange} />
-                                    </div>
-                                </div>
-
-                                <h2 className={styles.sectionTitle} style={{ marginTop: '2rem' }}>
-                                    <MapPin size={22} />
-                                    Endereço
-                                </h2>
-
-                                <div className={styles.formGrid}>
-                                    <div className={styles.formGroup}>
-                                        <label>CEP</label>
-                                        <input name="cep" value={formData.cep} onChange={handleChange} onBlur={buscarCEP} maxLength={9} placeholder="00000-000" />
-                                    </div>
-
-                                    <div className={styles.formGroup}>
-                                        <label>Logradouro</label>
-                                        <input name="logradouro" value={formData.logradouro} onChange={handleChange} />
-                                    </div>
-
-                                    <div className={styles.formGroup}>
-                                        <label>Número</label>
-                                        <input name="numero" value={formData.numero} onChange={handleChange} />
-                                    </div>
-
-                                    <div className={styles.formGroup}>
-                                        <label>Bairro</label>
-                                        <input name="bairro" value={formData.bairro} onChange={handleChange} />
-                                    </div>
-
-                                    <div className={styles.formGroup}>
-                                        <label>Cidade</label>
-                                        <input name="cidade" value={formData.cidade} onChange={handleChange} />
-                                    </div>
-
-                                    <div className={styles.formGroup}>
-                                        <label>UF</label>
-                                        <input name="uf" value={formData.uf} onChange={handleChange} maxLength={2} />
-                                    </div>
-
-                                    <div className={styles.formGroup}>
-                                        <label>Cód. IBGE</label>
-                                        <input name="cod_ibge" value={formData.cod_ibge} onChange={handleChange} />
-                                    </div>
-                                </div>
-
-                                <div className={styles.actions}>
-                                    <button type="button" className="btn btn-secondary" onClick={() => router.back()}>Cancelar</button>
-                                    <button type="button" className="btn btn-primary" onClick={() => setStep(2)}>Próximo</button>
-                                </div>
-                            </div>
-                        )}
-
-                        {step === 2 && (
-                            <div className="card">
-                                <h2 className={styles.sectionTitle}>
-                                    <User size={22} />
-                                    Administrador e Plano
-                                </h2>
-
-                                <div className={styles.formGroup} style={{ marginBottom: '20px' }}>
-                                    <label>Plano Escolhido *</label>
-                                    <select name="plan" value={formData.plan} onChange={handleChange} required>
-                                        <option value="basico">Básico</option>
-                                        <option value="profissional">Profissional</option>
-                                        <option value="enterprise">Enterprise</option>
-                                    </select>
-                                </div>
-
-                                <div className={styles.formGrid}>
-                                    <div className={styles.formGroup}>
-                                        <label>Nome do Admin *</label>
-                                        <input name="admin_name" value={formData.admin_name} onChange={handleChange} required />
-                                    </div>
-                                    <div className={styles.formGroup}>
-                                        <label>Email de Acesso *</label>
-                                        <input type="email" name="admin_email" value={formData.admin_email} onChange={handleChange} required />
-                                    </div>
-                                    <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-                                        <label>Senha Inicial *</label>
-                                        <input type="password" name="admin_password" value={formData.admin_password} onChange={handleChange} minLength={6} required />
-                                    </div>
-                                </div>
-
-                                <div className={styles.actions}>
-                                    <button type="button" className="btn btn-secondary" onClick={() => setStep(1)}>Voltar</button>
-                                    <button type="button" className="btn btn-primary" onClick={() => setStep(3)}>Próximo</button>
-                                </div>
-                            </div>
-                        )}
-
-                        {step === 3 && (
-                            <div className="card">
-                                <h2 className={styles.sectionTitle}>
-                                    <Settings2 size={22} />
-                                    Funcionalidades
-                                </h2>
-                                <FeaturesManager enabledFeatures={enabledFeatures} onChange={setEnabledFeatures} />
-                                <div className={styles.actions}>
-                                    <button type="button" className="btn btn-secondary" onClick={() => setStep(2)}>Voltar</button>
-                                    <button type="submit" className="btn btn-primary" disabled={loading}>
-                                        <Save size={18} />
-                                        {loading ? 'Criando...' : 'Criar Cliente'}
+                        <div className={styles.formGrid}>
+                            <div className={styles.formGroup}>
+                                <label>CNPJ *</label>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <input
+                                        type="text"
+                                        name="cnpj"
+                                        value={formData.cnpj}
+                                        onChange={handleChange}
+                                        required
+                                        maxLength={18}
+                                        style={{ flex: 1 }}
+                                        placeholder="00.000.000/0000-00"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={buscarCNPJ}
+                                        disabled={searchingCNPJ}
+                                        style={{
+                                            padding: '0 12px',
+                                            background: 'var(--primary)',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'background 0.2s',
+                                            minWidth: '44px'
+                                        }}
+                                        title="Buscar dados do CNPJ"
+                                    >
+                                        {searchingCNPJ ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
                                     </button>
                                 </div>
                             </div>
-                        )}
-                    </form>
 
-                    <div className={styles.steps}>
-                        <div className={`${styles.step} ${step >= 1 ? styles.active : ''}`}><span>1</span> Empresa</div>
-                        <div className={styles.stepLine} />
-                        <div className={`${styles.step} ${step >= 2 ? styles.active : ''}`}><span>2</span> Admin</div>
-                        <div className={styles.stepLine} />
-                        <div className={`${styles.step} ${step >= 3 ? styles.active : ''}`}><span>3</span> Recursos</div>
+                            <div className={styles.formGroup}>
+                                <label>Inscrição Estadual</label>
+                                <input
+                                    type="text"
+                                    name="inscricao_estadual"
+                                    value={formData.inscricao_estadual}
+                                    onChange={handleChange}
+                                />
+                            </div>
+
+                            {/* Resto dos campos continua igual */}
+                            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                                <label>Razão Social *</label>
+                                <input name="razao_social" value={formData.razao_social} onChange={handleChange} required />
+                            </div>
+
+                            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                                <label>Nome Fantasia *</label>
+                                <input name="nome_fantasia" value={formData.nome_fantasia} onChange={handleChange} required />
+                            </div>
+
+                            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                                <label>CNAE Principal</label>
+                                <input name="cnae_principal" value={formData.cnae_principal} onChange={handleChange} placeholder="Descrição ou código" />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label>Email *</label>
+                                <input type="email" name="email" value={formData.email} onChange={handleChange} required />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label>Telefone</label>
+                                <input name="phone" value={formData.phone} onChange={handleChange} />
+                            </div>
+                        </div>
+
+                        <h2 className={styles.sectionTitle} style={{ marginTop: '2rem' }}>
+                            <MapPin size={22} />
+                            Endereço
+                        </h2>
+
+                        <div className={styles.formGrid}>
+                            <div className={styles.formGroup}>
+                                <label>CEP</label>
+                                <input name="cep" value={formData.cep} onChange={handleChange} onBlur={buscarCEP} maxLength={9} placeholder="00000-000" />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label>Logradouro</label>
+                                <input name="logradouro" value={formData.logradouro} onChange={handleChange} />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label>Número</label>
+                                <input name="numero" value={formData.numero} onChange={handleChange} />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label>Bairro</label>
+                                <input name="bairro" value={formData.bairro} onChange={handleChange} />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label>Cidade</label>
+                                <input name="cidade" value={formData.cidade} onChange={handleChange} />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label>UF</label>
+                                <input name="uf" value={formData.uf} onChange={handleChange} maxLength={2} />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label>Cód. IBGE</label>
+                                <input name="cod_ibge" value={formData.cod_ibge} onChange={handleChange} />
+                            </div>
+                        </div>
+
+                        <div className={styles.actions}>
+                            <button type="button" className="btn btn-secondary" onClick={() => router.back()}>Cancelar</button>
+                            <button type="button" className="btn btn-primary" onClick={() => setStep(2)}>Próximo</button>
+                        </div>
                     </div>
+                )}
 
-                    <Modal isOpen={showModal} onClose={() => { setShowModal(false); router.push('/clientes'); }} type="success" title="Cliente Criado!" message="O cliente foi cadastrado com sucesso." />
+                {step === 2 && (
+                    <div className="card">
+                        <h2 className={styles.sectionTitle}>
+                            <User size={22} />
+                            Administrador e Plano
+                        </h2>
 
-                    <style jsx global>{`
+                        <div className={styles.formGroup} style={{ marginBottom: '20px' }}>
+                            <label>Plano Escolhido *</label>
+                            <select name="plan" value={formData.plan} onChange={handleChange} required>
+                                <option value="basico">Básico</option>
+                                <option value="profissional">Profissional</option>
+                                <option value="enterprise">Enterprise</option>
+                            </select>
+                        </div>
+
+                        <div className={styles.formGrid}>
+                            <div className={styles.formGroup}>
+                                <label>Nome do Admin *</label>
+                                <input name="admin_name" value={formData.admin_name} onChange={handleChange} required />
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Email de Acesso *</label>
+                                <input type="email" name="admin_email" value={formData.admin_email} onChange={handleChange} required />
+                            </div>
+                            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                                <label>Senha Inicial *</label>
+                                <input type="password" name="admin_password" value={formData.admin_password} onChange={handleChange} minLength={6} required />
+                            </div>
+                        </div>
+
+                        <div className={styles.actions}>
+                            <button type="button" className="btn btn-secondary" onClick={() => setStep(1)}>Voltar</button>
+                            <button type="button" className="btn btn-primary" onClick={() => setStep(3)}>Próximo</button>
+                        </div>
+                    </div>
+                )}
+
+                {step === 3 && (
+                    <div className="card">
+                        <h2 className={styles.sectionTitle}>
+                            <Settings2 size={22} />
+                            Funcionalidades
+                        </h2>
+                        <FeaturesManager enabledFeatures={enabledFeatures} onChange={setEnabledFeatures} />
+                        <div className={styles.actions}>
+                            <button type="button" className="btn btn-secondary" onClick={() => setStep(2)}>Voltar</button>
+                            <button type="submit" className="btn btn-primary" disabled={loading}>
+                                <Save size={18} />
+                                {loading ? 'Criando...' : 'Criar Cliente'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </form>
+
+            <div className={styles.steps}>
+                <div className={`${styles.step} ${step >= 1 ? styles.active : ''}`}><span>1</span> Empresa</div>
+                <div className={styles.stepLine} />
+                <div className={`${styles.step} ${step >= 2 ? styles.active : ''}`}><span>2</span> Admin</div>
+                <div className={styles.stepLine} />
+                <div className={`${styles.step} ${step >= 3 ? styles.active : ''}`}><span>3</span> Recursos</div>
+            </div>
+
+            <Modal isOpen={showModal} onClose={() => { setShowModal(false); router.push('/clientes'); }} type="success" title="Cliente Criado!" message="O cliente foi cadastrado com sucesso." />
+
+            <style jsx global>{`
                 .animate-spin { animation: spin 1s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
             `}</style>
-                </div>
-            );
-        }
+        </div>
+    );
+}
