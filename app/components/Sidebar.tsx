@@ -1,6 +1,6 @@
 'use client';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Building2, LogOut, Settings } from 'lucide-react';
+import { LayoutDashboard, Building2, LogOut } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
 export default function Sidebar() {
