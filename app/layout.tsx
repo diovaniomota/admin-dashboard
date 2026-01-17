@@ -2,6 +2,7 @@
 import './globals.css';
 import { usePathname } from 'next/navigation';
 import Sidebar from './components/Sidebar';
+import { ThemeProvider } from './context/ThemeContext';
 
 export default function RootLayout({
   children,
@@ -14,16 +15,18 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body>
-        {isLoginPage ? (
-          <>{children}</>
-        ) : (
-          <div style={{ display: 'flex', minHeight: '100vh' }}>
-            <Sidebar />
-            <main style={{ flex: 1, padding: '2rem', background: 'var(--bg-body)', overflowY: 'auto' }}>
-              {children}
-            </main>
-          </div>
-        )}
+        <ThemeProvider>
+          {isLoginPage ? (
+            <>{children}</>
+          ) : (
+            <div style={{ display: 'flex', minHeight: '100vh' }}>
+              <Sidebar />
+              <main style={{ flex: 1, padding: '2rem', background: 'var(--bg-body)', overflowY: 'auto' }}>
+                {children}
+              </main>
+            </div>
+          )}
+        </ThemeProvider>
       </body>
     </html>
   );

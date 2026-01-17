@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Search, MoreVertical, Edit, Ban, Trash2, CheckCircle, Copy, Check } from 'lucide-react';
+import { Plus, Search, MoreVertical, Edit, Ban, CheckCircle, Copy } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import Modal from '../components/Modal';
 import PromptModal from '../components/PromptModal';
@@ -34,7 +34,7 @@ export default function ClientesPage() {
     // Modal states
     const [showBlockModal, setShowBlockModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
+
     const [selectedClient, setSelectedClient] = useState<string | null>(null);
     const [modalMessage, setModalMessage] = useState({ title: '', message: '' });
 
@@ -119,33 +119,7 @@ export default function ClientesPage() {
         setOpenMenu(null);
     };
 
-    const openDeleteConfirm = (id: string) => {
-        setSelectedClient(id);
-        setShowDeleteModal(true);
-        setOpenMenu(null);
-    };
 
-    const handleDelete = async () => {
-        if (!selectedClient) return;
-
-        const { error } = await supabase
-            .from('organizations')
-            .delete()
-            .eq('id', selectedClient);
-
-        setShowDeleteModal(false);
-
-        if (error) {
-            console.error('Erro ao excluir:', error);
-            setModalMessage({ title: 'Erro ao Excluir', message: 'Não foi possível excluir: ' + error.message });
-            setShowSuccessModal(true);
-        } else {
-            setModalMessage({ title: 'Cliente Excluído!', message: 'O cliente foi removido permanentemente do sistema.' });
-            setShowSuccessModal(true);
-            fetchClients();
-        }
-        setSelectedClient(null);
-    };
 
     const getStatusBadge = (status: string) => {
         const badges: Record<string, string> = {
@@ -271,9 +245,7 @@ export default function ClientesPage() {
                                                                 <Ban size={16} /> Bloquear
                                                             </button>
                                                         )}
-                                                        <button className={styles.deleteBtn} onClick={() => openDeleteConfirm(client.id)}>
-                                                            <Trash2 size={16} /> Excluir
-                                                        </button>
+
                                                     </div>
                                                 )}
                                             </div>
@@ -297,21 +269,7 @@ export default function ClientesPage() {
                 confirmText="Bloquear"
             />
 
-            {/* Delete Confirmation Modal */}
-            <Modal
-                isOpen={showDeleteModal}
-                onClose={() => setShowDeleteModal(false)}
-                type="warning"
-                title="Confirmar Exclusão"
-                message="Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita."
-                showOkButton={false}
-                customButtons={
-                    <>
-                        <button className="btn btn-secondary" onClick={() => setShowDeleteModal(false)}>Cancelar</button>
-                        <button className="btn btn-danger" onClick={handleDelete}>Excluir</button>
-                    </>
-                }
-            />
+
 
             {/* Success Modal */}
             <Modal
