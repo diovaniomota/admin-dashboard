@@ -214,7 +214,7 @@ export default function EditClientePage() {
         } else {
             if (syncWithFocus) {
                 // Chama Server Action para sincronizar
-                syncCompanyToFocus(formData).then(syncResult => {
+                syncCompanyToFocus(formData).then((syncResult: any) => {
                     if (syncResult.success) {
                         setModalConfig({
                             type: 'success',
