@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabaseClient';
 import Modal from '../../components/Modal';
 import FeaturesManager, { AVAILABLE_FEATURES } from '../../components/FeaturesManager';
 import { formatCNPJ, formatPhone, cleanFormat } from '../../lib/formatters';
+import { syncCompanyToFocus } from '../../actions/focus';
 import styles from '../novo/novo.module.css';
 
 interface Organization {
@@ -46,6 +47,7 @@ export default function EditClientePage() {
     const [modalConfig, setModalConfig] = useState({ type: 'success' as 'success' | 'error', title: '', message: '' });
     const [codigoCliente, setCodigoCliente] = useState<number | null>(null);
     const [showToast, setShowToast] = useState(false);
+    const [syncWithFocus, setSyncWithFocus] = useState(false);
 
     const [formData, setFormData] = useState({
         razao_social: '',
@@ -210,12 +212,32 @@ export default function EditClientePage() {
         if (error) {
             setError('Erro ao salvar: ' + error.message);
         } else {
-            setModalConfig({
-                type: 'success',
-                title: 'Cliente Atualizado!',
-                message: 'Os dados do cliente foram atualizados com sucesso.'
-            });
-            setShowModal(true);
+            if (syncWithFocus) {
+                // Chama Server Action para sincronizar
+                syncCompanyToFocus(formData).then(syncResult => {
+                    if (syncResult.success) {
+                        setModalConfig({
+                            type: 'success',
+                            title: 'Cliente e Focus NFe Atualizados!',
+                            message: `Dados salvos localmente e sincronizados com a Focus NFe (${syncResult.action === 'updated' ? 'Atualizado' : 'Criado'}).`
+                        });
+                    } else {
+                        setModalConfig({
+                            type: 'error',
+                            title: 'Salvo localmente, mas Erro na Focus',
+                            message: `Os dados foram salvos no banco, MAS falhou na Focus NFe: ${syncResult.error}`
+                        });
+                    }
+                    setShowModal(true);
+                });
+            } else {
+                setModalConfig({
+                    type: 'success',
+                    title: 'Cliente Atualizado!',
+                    message: 'Os dados do cliente foram atualizados com sucesso (apenas local).'
+                });
+                setShowModal(true);
+            }
         }
         setSaving(false);
     };
@@ -444,12 +466,23 @@ export default function EditClientePage() {
                     </div>
                 )}
 
-                <div className={styles.actions} style={{ marginTop: '1.5rem' }}>
-                    <button type="button" className="btn btn-secondary" onClick={() => router.back()}>Cancelar</button>
-                    <button type="submit" className="btn btn-primary" disabled={saving}>
-                        <Save size={18} />
-                        {saving ? 'Salvando...' : 'Salvar Alterações'}
-                    </button>
+                <div className={styles.actions} style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'flex-end' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
+                        <input
+                            type="checkbox"
+                            checked={syncWithFocus}
+                            onChange={(e) => setSyncWithFocus(e.target.checked)}
+                            style={{ width: '18px', height: '18px' }}
+                        />
+                        <span style={{ fontSize: '0.9rem', color: '#475569' }}>Refletir alterações no Focus NFe (API)</span>
+                    </label>
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                        <button type="button" className="btn btn-secondary" onClick={() => router.back()}>Cancelar</button>
+                        <button type="submit" className="btn btn-primary" disabled={saving}>
+                            <Save size={18} />
+                            {saving ? 'Salvando...' : 'Salvar Alterações'}
+                        </button>
+                    </div>
                 </div>
             </form>
 

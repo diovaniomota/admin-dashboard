@@ -24,7 +24,7 @@
 }
 
 .modal {
-    background: white;
+    background: var(--bg-card);
     border-radius: 20px;
     padding: 40px;
     min-width: 380px;
@@ -131,6 +131,8 @@
     resize: none;
     font-family: inherit;
     transition: border-color 0.2s;
+    background: var(--bg-body);
+    color: var(--text-primary);
 }
 
 .inputWrapper textarea:focus {

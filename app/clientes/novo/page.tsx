@@ -8,6 +8,7 @@ import FeaturesManager, { AVAILABLE_FEATURES } from '../../components/FeaturesMa
 import { formatCNPJ, formatPhone, cleanFormat } from '../../lib/formatters';
 import styles from './novo.module.css';
 
+// Force rebuild
 export default function NovoClientePage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -15,6 +16,10 @@ export default function NovoClientePage() {
     const [error, setError] = useState('');
     const [step, setStep] = useState(1);
     const [showModal, setShowModal] = useState(false);
+    const [modalMessage, setModalMessage] = useState('O cliente foi cadastrado com sucesso.');
+    const [modalTitle, setModalTitle] = useState('Cliente Criado!');
+    const [registerInFocus, setRegisterInFocus] = useState(true);
+
     const [enabledFeatures, setEnabledFeatures] = useState<string[]>(
         AVAILABLE_FEATURES.map(f => f.key)
     );
@@ -133,7 +138,11 @@ export default function NovoClientePage() {
             });
 
             if (authError) {
-                setError('Erro ao criar usuário: ' + authError.message);
+                let msg = authError.message;
+                if (msg.includes('User already registered')) {
+                    msg = 'Este email já está cadastrado no sistema.';
+                }
+                setError('Erro ao criar usuário: ' + msg);
                 setLoading(false);
                 return;
             }
@@ -190,16 +199,43 @@ export default function NovoClientePage() {
                         name: formData.admin_name,
                         role: 'admin',
                         organization_id: orgData.id,
-                        empresa_id: orgData.id, // Restaurado pois parece ser obrigatório
+                        empresa_id: orgData.id,
                         email: formData.admin_email
-                        // status removido pois a coluna não existe na tabela app_users
                     }]);
 
                 if (appUserError) {
                     console.error('Erro ao criar app_users:', appUserError);
-                    // Não bloqueia o fluxo, mas loga o erro crítico
                     alert('Erro ao vincular usuário ao App: ' + appUserError.message);
                 }
+            }
+
+            // 5. Criar empresa na Focus NFe (Integração) - Apenas se marcado
+            if (registerInFocus) {
+                try {
+                    // @ts-ignore
+                    const { createCompanyInFocus } = await import('../../actions/focus');
+                    const focusResult = await createCompanyInFocus(formData);
+
+                    if (!focusResult.success) {
+                        console.error('Erro Focus NFe:', focusResult.error);
+                        setModalMessage(`Cliente criado no banco, mas houve erro na Focus NFe: ${focusResult.error}`);
+                        setModalTitle('Criado com Aviso');
+                    } else if (focusResult.warning) {
+                        setModalMessage(`Cliente criado no sistema! AVISO: ${focusResult.warning}`);
+                        setModalTitle('Criado (Homologação)');
+                    } else {
+                        console.log('Empresa criada na Focus NFe com sucesso!', focusResult.data);
+                        setModalMessage('Cliente cadastrado e sincronizado com a Focus NFe.');
+                        setModalTitle('Cliente Criado!');
+                    }
+                } catch (focusErr) {
+                    console.error('Erro ao chamar Focus NFe:', focusErr);
+                    setModalMessage('Cliente criado, mas falha na comunicação com a Focus NFe.');
+                    setModalTitle('Criado com Aviso');
+                }
+            } else {
+                setModalMessage('Cliente cadastrado com sucesso (sem integração Focus habilitada).');
+                setModalTitle('Cliente Criado!');
             }
 
             setShowModal(true);
@@ -288,7 +324,6 @@ export default function NovoClientePage() {
                                 />
                             </div>
 
-                            {/* Resto dos campos continua igual */}
                             <div className={`${styles.formGroup} ${styles.fullWidth}`}>
                                 <label>Razão Social *</label>
                                 <input name="razao_social" value={formData.razao_social} onChange={handleChange} required />
@@ -406,8 +441,27 @@ export default function NovoClientePage() {
                     <div className="card">
                         <h2 className={styles.sectionTitle}>
                             <Settings2 size={22} />
-                            Funcionalidades
+                            Funcionalidades e Integrações
                         </h2>
+
+                        <div style={{ marginBottom: '2rem', padding: '1rem', background: 'var(--bg-body)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                            <h3 style={{ fontSize: '1rem', marginBottom: '1rem', fontWeight: 600 }}>Integração Fiscal</h3>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={registerInFocus}
+                                    onChange={(e) => setRegisterInFocus(e.target.checked)}
+                                    style={{ width: '18px', height: '18px' }}
+                                />
+                                <div>
+                                    <span style={{ display: 'block', fontWeight: 500 }}>Cadastrar na Focus NFe</span>
+                                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                        Cria a empresa automaticamente na plataforma de emissão de notas.
+                                    </span>
+                                </div>
+                            </label>
+                        </div>
+
                         <FeaturesManager enabledFeatures={enabledFeatures} onChange={setEnabledFeatures} />
                         <div className={styles.actions}>
                             <button type="button" className="btn btn-secondary" onClick={() => setStep(2)}>Voltar</button>
@@ -428,7 +482,7 @@ export default function NovoClientePage() {
                 <div className={`${styles.step} ${step >= 3 ? styles.active : ''}`}><span>3</span> Recursos</div>
             </div>
 
-            <Modal isOpen={showModal} onClose={() => { setShowModal(false); router.push('/clientes'); }} type="success" title="Cliente Criado!" message="O cliente foi cadastrado com sucesso." />
+            <Modal isOpen={showModal} onClose={() => { setShowModal(false); router.push('/clientes'); }} type="success" title={modalTitle} message={modalMessage} />
 
             <style jsx global>{`
                 .animate-spin { animation: spin 1s linear infinite; }

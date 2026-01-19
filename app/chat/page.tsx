@@ -30,6 +30,11 @@ export default function ChatPage() {
     const [showCloseModal, setShowCloseModal] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
+    // New State for Reopen/Create Features
+    const [organizations, setOrganizations] = useState<{ id: string, nome_fantasia: string }[]>([]);
+    const [showNewTicketModal, setShowNewTicketModal] = useState(false);
+    const [selectedOrgId, setSelectedOrgId] = useState('');
+
     // Initial Load & Realtime Tickets
     useEffect(() => {
         fetchTickets();
@@ -77,6 +82,15 @@ export default function ChatPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    // Fetch Organizations for New Ticket
+    useEffect(() => {
+        const fetchOrgs = async () => {
+            const { data } = await supabase.from('organizations').select('id, nome_fantasia').order('nome_fantasia');
+            if (data) setOrganizations(data);
+        };
+        fetchOrgs();
+    }, []);
+
     const fetchTickets = async () => {
         const { data: ticketsData, error } = await supabase
             .from('support_tickets')
@@ -85,7 +99,6 @@ export default function ChatPage() {
 
         if (ticketsData) {
             try {
-                // Count unread messages (assuming column 'read' exists)
                 const { data: unreadData } = await supabase
                     .from('ticket_messages')
                     .select('ticket_id')
@@ -145,11 +158,7 @@ export default function ChatPage() {
             ticket_id: selectedTicket.id,
             sender_role: 'admin',
             content,
-            read: true // Admin messages are read by definition? Or client needs to read? 
-            // 'read' is for Recipient? Usually 'read' flag tracks 'has recipient seen it'. 
-            // Admin sent -> Client needs to read. Client sent -> Admin needs to read.
-            // Simplified: 'read' = Admin has read it. Client notifications uses session/local for now?
-            // Actually, for Admin Side cards, we care about 'client' messages.
+            read: true
         }]);
 
         // Update ticket updated_at
@@ -167,7 +176,6 @@ export default function ChatPage() {
 
         await supabase.from('support_tickets').update({ status: 'closed' }).eq('id', selectedTicket.id);
 
-        // Send system message? Optional.
         await supabase.from('ticket_messages').insert([{
             ticket_id: selectedTicket.id,
             sender_role: 'admin',
@@ -178,13 +186,99 @@ export default function ChatPage() {
         fetchTickets();
     };
 
+    const handleReopenTicket = async () => {
+        if (!selectedTicket) return;
+
+        await supabase.from('support_tickets')
+            .update({ status: 'open', updated_at: new Date().toISOString() })
+            .eq('id', selectedTicket.id);
+
+        await supabase.from('ticket_messages').insert([{
+            ticket_id: selectedTicket.id,
+            sender_role: 'admin',
+            content: '🔄 Atendimento reaberto pelo suporte.'
+        }]);
+
+        // Refresh local state immediately for better UX
+        setSelectedTicket(prev => prev ? { ...prev, status: 'open' } : null);
+        fetchTickets();
+    };
+
+    const handleCreateTicket = async () => {
+        if (!selectedOrgId) return;
+
+        // Check if ANY ticket exists (Open OR Closed)
+        const { data: existing } = await supabase
+            .from('support_tickets')
+            .select('*, organization:organizations(nome_fantasia)')
+            .eq('organization_id', selectedOrgId)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (existing) {
+            if (existing.status === 'open') {
+                // Already open, just switch to it
+                setSelectedTicket(existing);
+                setShowNewTicketModal(false);
+            } else {
+                // Closed, reopen it
+                await supabase.from('support_tickets')
+                    .update({ status: 'open', updated_at: new Date().toISOString() })
+                    .eq('id', existing.id);
+
+                await supabase.from('ticket_messages').insert([{
+                    ticket_id: existing.id,
+                    sender_role: 'admin',
+                    content: '🔄 Atendimento reaberto pelo suporte.'
+                }]);
+
+                const reopenedTicket = { ...existing, status: 'open', updated_at: new Date().toISOString() };
+                setSelectedTicket(reopenedTicket as Ticket);
+                setShowNewTicketModal(false);
+                fetchTickets();
+            }
+            return;
+        }
+
+        const { data: newTicket, error } = await supabase
+            .from('support_tickets')
+            .insert([{ organization_id: selectedOrgId, status: 'open' }])
+            .select('*, organization:organizations(nome_fantasia)')
+            .single();
+
+        if (error) {
+            console.error('Error creating ticket:', error);
+            return;
+        }
+
+        setShowNewTicketModal(false);
+        setTickets(prev => [newTicket, ...prev]);
+        setSelectedTicket(newTicket);
+
+        // Send initial message
+        await supabase.from('ticket_messages').insert([{
+            ticket_id: newTicket.id,
+            sender_role: 'admin',
+            content: 'Olá! O suporte iniciou este atendimento.'
+        }]);
+    };
+
     return (
         <div className={styles.container}>
             {/* Ticket List */}
             <div className={styles.ticketList}>
                 <div className={styles.listHeader}>
-                    <span>Atendimentos</span>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{tickets.filter(t => t.status === 'open').length} abertos</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <span>Atendimentos</span>
+                        <button
+                            className="btn btn-primary"
+                            style={{ padding: '4px 8px', fontSize: '0.8rem', background: 'var(--primary)', border: 'none', borderRadius: '4px', cursor: 'pointer', color: 'white' }}
+                            onClick={() => setShowNewTicketModal(true)}
+                        >
+                            + Novo
+                        </button>
+                    </div>
                 </div>
                 <div className={styles.listContent}>
                     {tickets.map(ticket => (
@@ -197,7 +291,7 @@ export default function ChatPage() {
                             <div className={styles.ticketHeader}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                     <span className={styles.clientName}>{ticket.organization?.nome_fantasia || 'Cliente Desconhecido'}</span>
-                                    {ticket.unread_count > 0 && (
+                                    {ticket.unread_count && ticket.unread_count > 0 ? (
                                         <span style={{
                                             background: '#ef4444', color: 'white', borderRadius: '50%',
                                             width: '18px', height: '18px', fontSize: '10px', display: 'flex',
@@ -205,14 +299,14 @@ export default function ChatPage() {
                                         }}>
                                             {ticket.unread_count}
                                         </span>
-                                    )}
+                                    ) : null}
                                 </div>
-                                {ticket.status === 'open' && <span className="badge badge-success" style={{ fontSize: '0.6rem' }}>Aberto</span>}
-                                {ticket.status === 'closed' && <span className="badge badge-secondary" style={{ fontSize: '0.6rem' }}>Fechado</span>}
+                                {ticket.status === 'open' && <span className={`${styles.badge} ${styles.badgeOpen}`}>Aberto</span>}
+                                {ticket.status === 'closed' && <span className={`${styles.badge} ${styles.badgeClosed}`}>Fechado</span>}
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-                                <span className={styles.lastMessage}>Clique para ver mensagens</span>
-                                <span className={styles.ticketTime}>
+                                <span className={styles.lastMessage} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Clique para ver mensagens</span>
+                                <span className={styles.ticketTime} style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                                     {new Date(ticket.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
@@ -239,9 +333,13 @@ export default function ChatPage() {
                                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>ID: {selectedTicket.organization_id.slice(0, 8)}</span>
                             </div>
                         </div>
-                        {selectedTicket.status === 'open' && (
-                            <button className="btn btn-outline-danger" onClick={handleCloseTicket} style={{ padding: '6px 12px', fontSize: '0.85rem' }}>
+                        {selectedTicket.status === 'open' ? (
+                            <button className="btn btn-outline-danger" onClick={handleCloseTicket} style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'transparent', border: '1px solid #dc2626', color: '#dc2626', borderRadius: '6px', cursor: 'pointer' }}>
                                 <CheckCircle size={16} /> Encerrar
+                            </button>
+                        ) : (
+                            <button className="btn btn-outline-primary" onClick={handleReopenTicket} style={{ padding: '6px 12px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', background: 'transparent', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '6px', cursor: 'pointer' }}>
+                                <Clock size={16} /> Reabrir
                             </button>
                         )}
                     </div>
@@ -272,8 +370,11 @@ export default function ChatPage() {
                             </button>
                         </div>
                     ) : (
-                        <div style={{ padding: '1rem', background: '#f8fafc', textAlign: 'center', color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)' }}>
-                            Este atendimento foi encerrado.
+                        <div style={{ padding: '1rem', background: 'var(--bg-body)', textAlign: 'center', color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <span>Este atendimento foi encerrado.</span>
+                            <button onClick={handleReopenTicket} style={{ background: 'none', border: 'none', color: 'var(--primary)', textDecoration: 'underline', cursor: 'pointer' }}>
+                                Reabrir conversa
+                            </button>
                         </div>
                     )}
                 </div>
@@ -332,6 +433,39 @@ export default function ChatPage() {
                             >
                                 Encerrar Atendimento
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* New Ticket Modal */}
+            {showNewTicketModal && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)'
+                }}>
+                    <div style={{
+                        background: 'var(--bg-card)', padding: '24px', borderRadius: '16px',
+                        width: '400px', maxWidth: '90%',
+                        boxShadow: 'var(--shadow-lg)',
+                        border: '1px solid var(--border-color)'
+                    }}>
+                        <h3 style={{ marginTop: 0, marginBottom: '16px', color: 'var(--text-primary)' }}>Iniciar Novo Atendimento</h3>
+                        <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Selecione o Cliente:</label>
+                        <select
+                            style={{ width: '100%', padding: '10px', borderRadius: '8px', marginBottom: '20px', background: 'var(--bg-body)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
+                            value={selectedOrgId}
+                            onChange={(e) => setSelectedOrgId(e.target.value)}
+                        >
+                            <option value="">Selecione...</option>
+                            {organizations.map(org => (
+                                <option key={org.id} value={org.id}>{org.nome_fantasia}</option>
+                            ))}
+                        </select>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                            <button onClick={() => setShowNewTicketModal(false)} className="btn btn-secondary" style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'transparent', cursor: 'pointer', color: 'var(--text-primary)' }}>Cancelar</button>
+                            <button onClick={handleCreateTicket} className="btn btn-primary" style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: 'var(--primary)', color: 'white', cursor: 'pointer' }} disabled={!selectedOrgId}>Iniciar Chat</button>
                         </div>
                     </div>
                 </div>
