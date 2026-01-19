@@ -17,13 +17,17 @@ interface Feature {
 const AVAILABLE_FEATURES: Feature[] = [
     // Vendas
     { key: 'pdv', label: 'PDV', description: 'Ponto de Venda', icon: ShoppingCart, category: 'Vendas' },
+    { key: 'caixa', label: 'Controle de Caixa', description: 'Abertura e Fechamento', icon: Calculator, category: 'Vendas' },
     { key: 'vendas', label: 'Vendas', description: 'Gestão de Vendas', icon: Receipt, category: 'Vendas' },
+    { key: 'ordens_servico', label: 'Ordens de Serviço', description: 'Gestão de Serviços', icon: FileText, category: 'Vendas' },
 
     // Cadastros
     { key: 'clientes', label: 'Clientes', description: 'Cadastro de Clientes', icon: Users, category: 'Cadastros' },
     { key: 'produtos', label: 'Produtos/Estoque', description: 'Gestão de Estoque', icon: Package, category: 'Cadastros' },
     { key: 'fornecedores', label: 'Fornecedores', description: 'Cadastro de Fornecedores', icon: Truck, category: 'Cadastros' },
+    { key: 'transportadoras', label: 'Transportadoras', description: 'Cadastro de Transportadoras', icon: Truck, category: 'Cadastros' },
     { key: 'veiculos', label: 'Veículos', description: 'Cadastro de Veículos', icon: Truck, category: 'Cadastros' },
+    { key: 'compras', label: 'Compras', description: 'Entrada de Notas', icon: ShoppingCart, category: 'Cadastros' },
 
     // Fiscal
     { key: 'nfe', label: 'NF-e', description: 'Nota Fiscal Eletrônica', icon: FileText, category: 'Fiscal' },
