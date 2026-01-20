@@ -221,7 +221,7 @@ export default function NovoClientePage() {
                         setModalMessage(`Cliente criado no banco, mas houve erro na Focus NFe: ${focusResult.error}`);
                         setModalTitle('Criado com Aviso');
                     } else if ((focusResult as any).warning) {
-                        setModalMessage(`Cliente criado no sistema! AVISO: ${focusResult.warning}`);
+                        setModalMessage(`Cliente criado no sistema! AVISO: ${(focusResult as any).warning}`);
                         setModalTitle('Criado (Homologação)');
                     } else {
                         console.log('Empresa criada na Focus NFe com sucesso!', focusResult.data);
