@@ -1,0 +1,6 @@
+{
+  "code": "PGRST204",
+  "message": "Could not find the 'empresa_id' column of 'sales' in the schema cache",
+  "details": null,
+  "hint": null
+}

@@ -1,17 +1,18 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Save, Building2, Ban, CheckCircle, Settings2, MapPin, Search, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Building2, Ban, CheckCircle, Settings2, MapPin, Search, Loader2, Lock } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import Modal from '../../components/Modal';
 import FeaturesManager, { AVAILABLE_FEATURES } from '../../components/FeaturesManager';
 import { formatCNPJ, formatPhone, cleanFormat } from '../../lib/formatters';
 import { syncCompanyToFocus } from '../../actions/focus';
+import { updateUserAccess } from '../../actions/users';
 import styles from '../novo/novo.module.css';
 
 interface Organization {
     id: string;
-    codigo: number; // Novo campo
+    codigo: number;
     razao_social: string;
     nome_fantasia: string;
     cnpj: string;
@@ -43,7 +44,7 @@ export default function EditClientePage() {
     const [searchingCNPJ, setSearchingCNPJ] = useState(false);
     const [error, setError] = useState('');
     const [showModal, setShowModal] = useState(false);
-    const [activeTab, setActiveTab] = useState<'dados' | 'funcionalidades'>('dados');
+    const [activeTab, setActiveTab] = useState<'dados' | 'acesso' | 'funcionalidades'>('dados');
     const [modalConfig, setModalConfig] = useState({ type: 'success' as 'success' | 'error', title: '', message: '' });
     const [codigoCliente, setCodigoCliente] = useState<number | null>(null);
     const [showToast, setShowToast] = useState(false);
@@ -65,7 +66,8 @@ export default function EditClientePage() {
         bairro: '',
         cidade: '',
         uf: '',
-        cod_ibge: ''
+        cod_ibge: '',
+        admin_password: '' // New field for password update
     });
 
     const [enabledFeatures, setEnabledFeatures] = useState<string[]>(
@@ -90,7 +92,7 @@ export default function EditClientePage() {
             console.error('Error fetching client:', error);
             setError('Cliente não encontrado');
         } else if (data) {
-            setCodigoCliente(data.codigo); // Salva o código
+            setCodigoCliente(data.codigo);
             setFormData({
                 razao_social: data.razao_social || '',
                 nome_fantasia: data.nome_fantasia || '',
@@ -107,7 +109,8 @@ export default function EditClientePage() {
                 bairro: data.bairro || '',
                 cidade: data.cidade || '',
                 uf: data.uf || '',
-                cod_ibge: data.cod_ibge || ''
+                cod_ibge: data.cod_ibge || '',
+                admin_password: ''
             });
             setEnabledFeatures(data.enabled_features || AVAILABLE_FEATURES.map(f => f.key));
         }
@@ -187,7 +190,8 @@ export default function EditClientePage() {
         setSaving(true);
         setError('');
 
-        const { error } = await supabase
+        // 1. Update Organization Data
+        const { error: orgError } = await supabase
             .from('organizations')
             .update({
                 razao_social: formData.razao_social,
@@ -209,42 +213,51 @@ export default function EditClientePage() {
             })
             .eq('id', id);
 
-        if (error) {
-            setError('Erro ao salvar: ' + error.message);
-        } else {
-            if (syncWithFocus) {
-                // Chama Server Action para sincronizar
-                syncCompanyToFocus(formData).then((syncResult: any) => {
-                    if (syncResult.success) {
-                        setModalConfig({
-                            type: 'success',
-                            title: 'Cliente e Focus NFe Atualizados!',
-                            message: `Dados salvos localmente e sincronizados com a Focus NFe (${syncResult.action === 'updated' ? 'Atualizado' : 'Criado'}).`
-                        });
-                    } else {
-                        setModalConfig({
-                            type: 'error',
-                            title: 'Salvo localmente, mas Erro na Focus',
-                            message: `Os dados foram salvos no banco, MAS falhou na Focus NFe: ${syncResult.error}`
-                        });
-                    }
-                    setShowModal(true);
-                });
-            } else {
+        if (orgError) {
+            setError('Erro ao salvar organização: ' + orgError.message);
+            setSaving(false);
+            return;
+        }
+
+        // 2. Update User Access (Email/Password) via Server Action
+        const accessResult = await updateUserAccess(id, formData.email, formData.admin_password);
+
+        if (!accessResult.success) {
+            // Non-fatal error for access update, but warn user
+            console.error('Access Update Error:', accessResult.error);
+            // We append this error to the modal config later or just show a warning
+        }
+
+        // 3. Sync with Focus NFe
+        if (syncWithFocus) {
+            syncCompanyToFocus(formData).then((syncResult: any) => {
+                let message = `Dados salvos. Sincronização Focus: ${syncResult.success ? 'OK' : 'Falha (' + syncResult.error + ')'}.`;
+                if (!accessResult.success) message += ` ERRO Acesso: ${accessResult.error}`;
+
                 setModalConfig({
-                    type: 'success',
-                    title: 'Cliente Atualizado!',
-                    message: 'Os dados do cliente foram atualizados com sucesso (apenas local).'
+                    type: syncResult.success && accessResult.success ? 'success' : 'error',
+                    title: syncResult.success ? 'Atualizado com Sucesso' : 'Salvo com Alertas',
+                    message
                 });
                 setShowModal(true);
-            }
+            });
+        } else {
+            let message = 'Os dados foram atualizados.';
+            if (!accessResult.success) message += ` PORÉM houve erro ao atualizar senha/acesso: ${accessResult.error}`;
+
+            setModalConfig({
+                type: accessResult.success ? 'success' : 'error',
+                title: accessResult.success ? 'Cliente Atualizado!' : 'Salvo com Erro de Acesso',
+                message
+            });
+            setShowModal(true);
         }
+
         setSaving(false);
     };
 
     if (loading) return <div style={{ padding: '3rem', textAlign: 'center' }}>Carregando...</div>;
 
-    // Formatação do ID com zeros à esquerda (padStart)
     const formattedId = codigoCliente ? codigoCliente.toString().padStart(2, '0') : '--';
 
     return (
@@ -266,7 +279,6 @@ export default function EditClientePage() {
                             <p style={{ margin: 0 }}>{formData.nome_fantasia}</p>
                         </div>
 
-                        {/* Display do ID Sequencial Estilizado */}
                         <div style={{
                             display: 'flex',
                             flexDirection: 'column',
@@ -322,6 +334,19 @@ export default function EditClientePage() {
                 >
                     <Building2 size={18} />
                     Dados Cadastrais
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('acesso')}
+                    style={{
+                        padding: '10px 20px', border: 'none', borderRadius: '8px',
+                        background: activeTab === 'acesso' ? 'white' : 'transparent',
+                        fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
+                        boxShadow: activeTab === 'acesso' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                    }}
+                >
+                    <Lock size={18} />
+                    Acesso
                 </button>
                 <button
                     type="button"
@@ -390,10 +415,8 @@ export default function EditClientePage() {
                                 <label>CNAE Principal</label>
                                 <input name="cnae_principal" value={formData.cnae_principal} onChange={handleChange} />
                             </div>
-                            <div className={styles.formGroup}>
-                                <label>Email *</label>
-                                <input type="email" name="email" value={formData.email} onChange={handleChange} required />
-                            </div>
+
+                            {/* Email e Phone removidos daqui se quiser focar apenas no 'Acesso', mas mantendo por compatibilidade visual se desejar. O usuário pediu ABA separada. */}
                             <div className={styles.formGroup}>
                                 <label>Telefone</label>
                                 <input name="phone" value={formData.phone} onChange={handleChange} />
@@ -450,6 +473,55 @@ export default function EditClientePage() {
                                 <strong>Status: </strong>
                                 <span style={{ textTransform: 'capitalize', color: formData.status === 'bloqueado' ? 'var(--danger)' : 'var(--success)' }}>
                                     {formData.status}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'acesso' && (
+                    <div className="card">
+                        <h2 className={styles.sectionTitle}>
+                            <Lock size={22} />
+                            Credenciais de Acesso
+                        </h2>
+
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg mb-6">
+                            <p className="text-sm text-slate-600">
+                                Estas credenciais permitem que o administrador da empresa faça login no NextDashboard.
+                                <br />
+                                <strong>Nota:</strong> Alterar o e-mail aqui atualizará tanto o registro da empresa quanto o usuário de login.
+                            </p>
+                        </div>
+
+                        <div className={styles.formGrid}>
+                            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                                <label>Email de Login *</label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    value={formData.email}
+                                    onChange={handleChange}
+                                    required
+                                    placeholder="ex: admin@empresa.com"
+                                />
+                                <span style={{ fontSize: '0.8rem', color: '#666', marginTop: '4px' }}>
+                                    Este email é usado para login e notificações.
+                                </span>
+                            </div>
+
+                            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+                                <label>Alterar Senha</label>
+                                <input
+                                    type="password"
+                                    name="admin_password"
+                                    value={formData.admin_password}
+                                    onChange={handleChange}
+                                    placeholder="Deixe em branco para manter a atual"
+                                    minLength={6}
+                                />
+                                <span style={{ fontSize: '0.8rem', color: '#666', marginTop: '4px' }}>
+                                    Mínimo de 6 caracteres. Preencha apenas se desejar redefinir a senha do usuário.
                                 </span>
                             </div>
                         </div>
