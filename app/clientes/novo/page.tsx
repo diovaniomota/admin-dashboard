@@ -148,92 +148,19 @@ export default function NovoClientePage() {
         setError('');
 
         try {
-            // 1. Criar usuário admin no Supabase Auth
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email: formData.admin_email,
-                password: formData.admin_password,
-                options: {
-                    data: {
-                        name: formData.admin_name,
-                        role: 'Administrador',
-                        is_super_admin: false
-                    }
-                }
-            });
+            // Importar a Server Action
+            const { createClientAction } = await import('../../actions/users');
 
-            if (authError) {
-                let msg = authError.message;
-                if (msg.includes('User already registered')) {
-                    msg = 'Este email já está cadastrado no sistema.';
-                }
-                setError('Erro ao criar usuário: ' + msg);
+            // 1. Criar Organização e Usuário via Server Action (Robusto contra RLS)
+            const result = await createClientAction(formData, enabledFeatures);
+
+            if (!result.success) {
+                setError(result.error);
                 setLoading(false);
                 return;
             }
 
-            // 2. Criar organização com todos os dados
-            const { data: orgData, error: orgError } = await supabase
-                .from('organizations')
-                .insert([{
-                    razao_social: formData.razao_social,
-                    nome_fantasia: formData.nome_fantasia,
-                    cnpj: formData.cnpj,
-                    email: formData.email,
-                    phone: formData.phone,
-                    plan: formData.plan,
-                    status: 'ativo',
-                    admin_user_id: authData.user?.id,
-                    enabled_features: enabledFeatures,
-                    inscricao_estadual: formData.inscricao_estadual,
-                    cnae_principal: formData.cnae_principal,
-                    cep: formData.cep,
-                    logradouro: formData.logradouro,
-                    numero: formData.numero,
-                    bairro: formData.bairro,
-                    cidade: formData.cidade,
-                    uf: formData.uf,
-                    cod_ibge: formData.cod_ibge
-                }])
-                .select()
-                .single();
-
-            if (orgError) {
-                setError('Erro ao criar organização: ' + orgError.message);
-                setLoading(false);
-                return;
-            }
-
-            // 3. Criar perfil do usuário (LEGADO: user_profiles)
-            if (authData.user) {
-                await supabase
-                    .from('user_profiles')
-                    .insert([{
-                        id: authData.user.id,
-                        name: formData.admin_name,
-                        role: 'Administrador',
-                        organization_id: orgData.id,
-                        is_super_admin: false
-                    }]);
-
-                // 4. Criar perfil do usuário (NOVO: app_users) para acesso ao NextDashboard
-                const { error: appUserError } = await supabase
-                    .from('app_users')
-                    .insert([{
-                        auth_id: authData.user.id,
-                        name: formData.admin_name,
-                        role: 'admin',
-                        organization_id: orgData.id,
-                        empresa_id: orgData.id,
-                        email: formData.admin_email
-                    }]);
-
-                if (appUserError) {
-                    console.error('Erro ao criar app_users:', appUserError);
-                    alert('Erro ao vincular usuário ao App: ' + appUserError.message);
-                }
-            }
-
-            // 5. Criar empresa na Focus NFe (Integração) - Apenas se marcado
+            // 2. Criar empresa na Focus NFe (Integração) - Apenas se marcado
             if (registerInFocus) {
                 try {
                     // @ts-ignore
