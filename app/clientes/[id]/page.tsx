@@ -125,6 +125,23 @@ export default function EditClientePage() {
         setError('');
     };
 
+    const fetchIbgeCode = async (uf: string, cityName: string) => {
+        try {
+            const res = await fetch(`https://brasilapi.com.br/api/ibge/municipios/v1/${uf}`);
+            const cities = await res.json();
+
+            // Normalize for comparison (remove accents, lowercase)
+            const normalize = (str: string) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const targetCity = normalize(cityName);
+
+            const city = cities.find((c: any) => normalize(c.nome) === targetCity);
+            return city ? city.codigo_ibge : '';
+        } catch (error) {
+            console.error("Erro ao buscar código IBGE:", error);
+            return '';
+        }
+    };
+
     const buscarCNPJ = async () => {
         const cnpjClean = cleanFormat(formData.cnpj);
         if (cnpjClean.length !== 14) {
@@ -140,6 +157,12 @@ export default function EditClientePage() {
             const data = await res.json();
 
             if (res.ok) {
+                // Fetch IBGE code if city/UF available
+                let ibgeCode = '';
+                if (data.uf && data.municipio) {
+                    ibgeCode = await fetchIbgeCode(data.uf, data.municipio);
+                }
+
                 setFormData(prev => ({
                     ...prev,
                     razao_social: data.razao_social,
@@ -151,6 +174,7 @@ export default function EditClientePage() {
                     bairro: data.bairro,
                     cidade: data.municipio,
                     uf: data.uf,
+                    cod_ibge: ibgeCode,
                     phone: formatPhone(data.ddd_telefone_1 || '')
                 }));
             } else {

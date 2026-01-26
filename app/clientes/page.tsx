@@ -1,29 +1,16 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Search, MoreVertical, Edit, Ban, CheckCircle, Copy } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import Modal from '../components/Modal';
 import PromptModal from '../components/PromptModal';
 import styles from './clientes.module.css';
-
-interface Organization {
-    id: string;
-    codigo?: number;
-    razao_social: string;
-    nome_fantasia: string;
-    cnpj: string;
-    email: string;
-    phone: string;
-    plan: string;
-    status: string;
-    created_at: string;
-}
+import { useClients } from '../hooks/useClients';
 
 export default function ClientesPage() {
     const router = useRouter();
-    const [clients, setClients] = useState<Organization[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { clients, loading, refreshClients } = useClients();
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('todos');
     const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -37,25 +24,6 @@ export default function ClientesPage() {
 
     const [selectedClient, setSelectedClient] = useState<string | null>(null);
     const [modalMessage, setModalMessage] = useState({ title: '', message: '' });
-
-    useEffect(() => {
-        fetchClients();
-    }, []);
-
-    const fetchClients = async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-            .from('organizations')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            console.error('Error fetching clients:', error);
-        } else {
-            setClients(data || []);
-        }
-        setLoading(false);
-    };
 
     const filteredClients = clients.filter(client => {
         const matchesSearch =
@@ -96,7 +64,7 @@ export default function ClientesPage() {
         if (!error) {
             setModalMessage({ title: 'Cliente Bloqueado!', message: 'O acesso do cliente foi bloqueado com sucesso. Ele não poderá mais acessar o sistema.' });
             setShowSuccessModal(true);
-            fetchClients();
+            refreshClients();
         }
         setSelectedClient(null);
     };
@@ -114,17 +82,17 @@ export default function ClientesPage() {
         if (!error) {
             setModalMessage({ title: 'Cliente Desbloqueado!', message: 'O acesso do cliente foi restaurado com sucesso.' });
             setShowSuccessModal(true);
-            fetchClients();
+            refreshClients();
         }
         setOpenMenu(null);
     };
 
-
-
     const getStatusBadge = (status: string) => {
         const badges: Record<string, string> = {
             ativo: 'badge-success',
-            bloqueado: 'badge-danger'
+            bloqueado: 'badge-danger',
+            trial: 'badge-info',
+            vencido: 'badge-warning'
         };
         return badges[status] || 'badge-secondary';
     };

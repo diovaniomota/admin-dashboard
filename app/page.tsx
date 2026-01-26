@@ -1,56 +1,20 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { supabase } from './lib/supabaseClient';
-import { Building2, Users, AlertTriangle, DollarSign, TrendingUp } from 'lucide-react';
+import { useClients } from './hooks/useClients';
+import StatsCard from './components/StatsCard';
+import { Building2, Users, AlertTriangle, TrendingUp } from 'lucide-react';
 import styles from './page.module.css';
 
-interface Organization {
-  id: string;
-  nome_fantasia: string;
-  status: string;
-  plan: string;
-  created_at: string;
-}
-
 export default function Dashboard() {
-  const [stats, setStats] = useState({
-    total: 0,
-    ativos: 0,
-    trial: 0,
-    bloqueados: 0,
-    vencidos: 0
-  });
-  const [recentClients, setRecentClients] = useState<Organization[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { clients, loading } = useClients();
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  const fetchStats = async () => {
-    setLoading(true);
-
-    const { data: orgs, error } = await supabase
-      .from('organizations')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching organizations:', error);
-      setLoading(false);
-      return;
-    }
-
-    const total = orgs?.length || 0;
-    const ativos = orgs?.filter(o => o.status === 'ativo').length || 0;
-    const trial = orgs?.filter(o => o.status === 'trial').length || 0;
-    const bloqueados = orgs?.filter(o => o.status === 'bloqueado').length || 0;
-    const vencidos = orgs?.filter(o => o.status === 'vencido').length || 0;
-
-    setStats({ total, ativos, trial, bloqueados, vencidos });
-    setRecentClients(orgs?.slice(0, 5) || []);
-    setLoading(false);
+  const stats = {
+    total: clients.length,
+    ativos: clients.filter(c => c.status === 'ativo').length,
+    trial: clients.filter(c => c.status === 'trial').length,
+    bloqueados: clients.filter(c => c.status === 'bloqueado').length,
   };
+
+  const recentClients = clients.slice(0, 5);
 
   const getStatusBadge = (status: string) => {
     const badges: Record<string, string> = {
@@ -79,45 +43,30 @@ export default function Dashboard() {
 
       {/* Stats Cards */}
       <div className={styles.statsGrid}>
-        <div className={`card ${styles.statCard}`}>
-          <div className={styles.statIcon} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-            <Building2 size={24} />
-          </div>
-          <div className={styles.statInfo}>
-            <span className={styles.statValue}>{stats.total}</span>
-            <span className={styles.statLabel}>Total de Clientes</span>
-          </div>
-        </div>
-
-        <div className={`card ${styles.statCard}`}>
-          <div className={styles.statIcon} style={{ background: 'var(--success)' }}>
-            <TrendingUp size={24} />
-          </div>
-          <div className={styles.statInfo}>
-            <span className={styles.statValue}>{stats.ativos}</span>
-            <span className={styles.statLabel}>Ativos</span>
-          </div>
-        </div>
-
-        <div className={`card ${styles.statCard}`}>
-          <div className={styles.statIcon} style={{ background: 'var(--info)' }}>
-            <Users size={24} />
-          </div>
-          <div className={styles.statInfo}>
-            <span className={styles.statValue}>{stats.trial}</span>
-            <span className={styles.statLabel}>Em Trial</span>
-          </div>
-        </div>
-
-        <div className={`card ${styles.statCard}`}>
-          <div className={styles.statIcon} style={{ background: 'var(--danger)' }}>
-            <AlertTriangle size={24} />
-          </div>
-          <div className={styles.statInfo}>
-            <span className={styles.statValue}>{stats.bloqueados}</span>
-            <span className={styles.statLabel}>Bloqueados</span>
-          </div>
-        </div>
+        <StatsCard
+          label="Total de Clientes"
+          value={stats.total}
+          icon={Building2}
+          iconBg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+        />
+        <StatsCard
+          label="Ativos"
+          value={stats.ativos}
+          icon={TrendingUp}
+          iconBg="var(--success)"
+        />
+        <StatsCard
+          label="Em Trial"
+          value={stats.trial}
+          icon={Users}
+          iconBg="var(--info)"
+        />
+        <StatsCard
+          label="Bloqueados"
+          value={stats.bloqueados}
+          icon={AlertTriangle}
+          iconBg="var(--danger)"
+        />
       </div>
 
       {/* Recent Clients */}
